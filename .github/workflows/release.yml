@@ -57,7 +57,7 @@ jobs:
             -target=${{ matrix.gomobile_target }} \
             -androidapi=23 \
             -o dist/frplib-${{ matrix.target }}.aar \
-            -ldflags="-s -w" \
+            -ldflags="-s -w -checklinkname=0" \
             -trimpath \
             -javapkg=io.github.sky22333.frplib \
             github.com/sky22333/frplib
