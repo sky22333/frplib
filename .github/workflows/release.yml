@@ -59,7 +59,7 @@ jobs:
             -o dist/frplib-${{ matrix.target }}.aar \
             -ldflags="-s -w -checklinkname=0" \
             -trimpath \
-            -javapkg=io.github.sky22333.frplib \
+            -javapkg=io.github.sky22333 \
             github.com/sky22333/frplib
 
       - name: 上传构建产物
