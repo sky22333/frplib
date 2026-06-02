@@ -1,6 +1,6 @@
 # frplib
 
-`frplib` 是官方 frp 的 Android AAR 绑定库。它接收官方 TOML 配置字符串，用于启动、停止、重启 `frpc` / `frps`。
+`frplib` 是 frp 的 Android AAR 绑定库。它接收官方 TOML 配置字符串，用于启动、停止、重启 `frpc` / `frps`。
 
 ## 导入
 
