@@ -29,7 +29,7 @@ io.github.sky22333.frplib
 App 启动后先设置私有临时目录：
 
 ```kotlin
-val tempErr = Frplib.SetTempDir(context.cacheDir.absolutePath)
+val tempErr = Frplib.setTempDir(context.cacheDir.absolutePath)
 if (tempErr.isNotEmpty()) {
     // 处理临时目录错误，不要继续启动 frp
 }
@@ -38,21 +38,21 @@ if (tempErr.isNotEmpty()) {
 启动客户端：
 
 ```kotlin
-val err = Frplib.StartClient(frpcToml)
+val err = Frplib.startClient(frpcToml)
 if (err.isNotEmpty()) {
     // 处理错误
 }
 
-Frplib.ReloadClient(newFrpcToml)
-Frplib.StopClient()
+Frplib.reloadClient(newFrpcToml)
+Frplib.stopClient()
 ```
 
 启动服务端：
 
 ```kotlin
-Frplib.StartServer(frpsToml)
-Frplib.ReloadServer(newFrpsToml)
-Frplib.StopServer()
+Frplib.startServer(frpsToml)
+Frplib.reloadServer(newFrpsToml)
+Frplib.stopServer()
 ```
 
 返回值：
@@ -76,28 +76,28 @@ RELOAD_FAILED: ...
 ## 多实例
 
 ```kotlin
-Frplib.StartClientWithID("client-a", frpcTomlA)
-Frplib.StartClientWithID("client-b", frpcTomlB)
-Frplib.StopClientWithID("client-a")
+Frplib.startClientWithID("client-a", frpcTomlA)
+Frplib.startClientWithID("client-b", frpcTomlB)
+Frplib.stopClientWithID("client-a")
 
-Frplib.StartServerWithID("server-a", frpsTomlA)
-Frplib.ReloadServerWithID("server-a", newFrpsTomlA)
-Frplib.StopServerWithID("server-a")
+Frplib.startServerWithID("server-a", frpsTomlA)
+Frplib.reloadServerWithID("server-a", newFrpsTomlA)
+Frplib.stopServerWithID("server-a")
 ```
 
 辅助方法：
 
 ```kotlin
-Frplib.IsClientRunning()
-Frplib.IsClientRunningWithID("client-a")
-Frplib.IsServerRunning()
-Frplib.IsServerRunningWithID("server-a")
+Frplib.isClientRunning()
+Frplib.isClientRunningWithID("client-a")
+Frplib.isServerRunning()
+Frplib.isServerRunningWithID("server-a")
 
-Frplib.StopAll()
-Frplib.ListInstances()
+Frplib.stopAll()
+Frplib.listInstances()
 ```
 
-`ListInstances()` 每行返回一个实例：
+`listInstances()` 每行返回一个实例：
 
 ```text
 type:id:state
@@ -107,7 +107,7 @@ type:id:state:lastError
 ## 日志
 
 ```kotlin
-Frplib.SetLogCallback(object : FrpLogCallback {
+Frplib.setLogCallback(object : FrpLogCallback {
     override fun onLog(instanceID: String, type: String, level: String, message: String) {
         // type: client / server / frp
         // level: trace / debug / info / warn / error
@@ -125,7 +125,7 @@ Frplib.SetLogCallback(object : FrpLogCallback {
 
 ## Reload
 
-`ReloadClient` 和 `ReloadServer` 使用安全重启：
+`reloadClient` 和 `reloadServer` 使用安全重启：
 
 ```text
 验证新 TOML -> 停止旧实例 -> 启动新实例
