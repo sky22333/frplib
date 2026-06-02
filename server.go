@@ -49,7 +49,20 @@ func validateServerConfig(configPath string) error {
 	return nil
 }
 
-func newServerService(ctx context.Context, configPath string) (closeableService, error) {
+type serverService struct {
+	svc *server.Service
+}
+
+func (s *serverService) Run(ctx context.Context) error {
+	s.svc.Run(ctx)
+	return nil
+}
+
+func (s *serverService) Close() error {
+	return s.svc.Close()
+}
+
+func newServerService(configPath string) (runningService, error) {
 	common, isLegacyFormat, err := config.LoadServerConfig(configPath, true)
 	if err != nil {
 		return nil, newError(ErrInvalidToml, "parse frps TOML failed: %v", err)
@@ -63,9 +76,5 @@ func newServerService(ctx context.Context, configPath string) (closeableService,
 		return nil, newError(ErrStartFailed, "create frps service failed: %v", err)
 	}
 
-	go func() {
-		svc.Run(ctx)
-	}()
-
-	return svc, nil
+	return &serverService{svc: svc}, nil
 }

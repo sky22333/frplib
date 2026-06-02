@@ -2,7 +2,6 @@ package frplib
 
 import (
 	"context"
-	"time"
 
 	"github.com/fatedier/frp/client"
 	"github.com/fatedier/frp/pkg/config"
@@ -41,13 +40,11 @@ type clientService struct {
 	svc *client.Service
 }
 
-func (s *clientService) Close() error {
-	s.svc.Close()
-	return nil
+func (s *clientService) Run(ctx context.Context) error {
+	return s.svc.Run(ctx)
 }
 
-func (s *clientService) GracefulClose(d time.Duration) error {
-	s.svc.GracefulClose(d)
+func (s *clientService) Close() error {
 	return nil
 }
 
@@ -65,7 +62,7 @@ func validateClientConfig(configPath string) error {
 	return nil
 }
 
-func newClientService(ctx context.Context, configPath string) (closeableService, error) {
+func newClientService(configPath string) (runningService, error) {
 	common, proxies, visitors, isLegacyFormat, err := config.LoadClientConfig(configPath, true)
 	if err != nil {
 		return nil, newError(ErrInvalidToml, "parse frpc TOML failed: %v", err)
@@ -88,12 +85,6 @@ func newClientService(ctx context.Context, configPath string) (closeableService,
 	if err != nil {
 		return nil, newError(ErrStartFailed, "create frpc service failed: %v", err)
 	}
-
-	go func() {
-		if err := svc.Run(ctx); err != nil {
-			emitLog("", instanceTypeClient, "error", err.Error())
-		}
-	}()
 
 	return &clientService{svc: svc}, nil
 }

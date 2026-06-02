@@ -15,7 +15,6 @@ const (
 	instanceTypeClient = "client"
 	instanceTypeServer = "server"
 
-	stateStarting = "starting"
 	stateRunning  = "running"
 	stateStopping = "stopping"
 	stateStopped  = "stopped"
@@ -24,15 +23,12 @@ const (
 
 var validIDPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
-type closeableService interface {
+type runningService interface {
+	Run(context.Context) error
 	Close() error
 }
 
-type gracefulCloseableService interface {
-	GracefulClose(time.Duration) error
-}
-
-type serviceFactory func(context.Context, string) (closeableService, error)
+type serviceFactory func(string) (runningService, error)
 
 type configValidator func(string) error
 
@@ -44,7 +40,8 @@ type instance struct {
 	configPath string
 	cancel     context.CancelFunc
 	done       chan struct{}
-	service    closeableService
+	service    runningService
+	stopping   bool
 }
 
 type manager struct {
@@ -121,8 +118,17 @@ func (m *manager) start(typ, id, configToml string, factory serviceFactory) erro
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	service, err := factory(ctx, configPath)
+
+	m.mu.Lock()
+	if current, ok := m.instances[key]; ok && current.state != stateStopped && current.state != stateFailed {
+		m.mu.Unlock()
+		cancel()
+		removeConfigTemp(configPath)
+		return newError(ErrAlreadyRunning, "%s instance %q is already running", typ, id)
+	}
+	service, err := factory(configPath)
 	if err != nil {
+		m.mu.Unlock()
 		cancel()
 		removeConfigTemp(configPath)
 		return err
@@ -131,45 +137,51 @@ func (m *manager) start(typ, id, configToml string, factory serviceFactory) erro
 	inst := &instance{
 		id:         id,
 		typ:        typ,
-		state:      stateStarting,
+		state:      stateRunning,
 		configPath: configPath,
 		cancel:     cancel,
 		done:       make(chan struct{}),
 		service:    service,
 	}
-
-	m.mu.Lock()
-	if current, ok := m.instances[key]; ok && current.state != stateStopped && current.state != stateFailed {
-		m.mu.Unlock()
-		_ = service.Close()
-		cancel()
-		removeConfigTemp(configPath)
-		return newError(ErrAlreadyRunning, "%s instance %q is already running", typ, id)
-	}
 	m.instances[key] = inst
 	m.mu.Unlock()
 
-	go m.watch(key, inst)
-
-	m.mu.Lock()
-	inst.state = stateRunning
-	m.mu.Unlock()
 	emitLog(id, typ, "info", "started")
+
+	go m.run(key, inst, ctx)
 
 	return nil
 }
 
-func (m *manager) watch(key string, inst *instance) {
-	<-inst.done
+func (m *manager) run(key string, inst *instance, ctx context.Context) {
+	err := inst.service.Run(ctx)
+	finalState := stateStopped
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if current, ok := m.instances[key]; ok && current == inst {
-		if inst.state != stateStopping && inst.state != stateStopped {
+		switch {
+		case inst.stopping:
 			inst.state = stateStopped
+			inst.lastError = ""
+		case err != nil:
+			inst.state = stateFailed
+			inst.lastError = err.Error()
+		default:
+			inst.state = stateStopped
+			inst.lastError = ""
 		}
+		finalState = inst.state
 		removeConfigTemp(inst.configPath)
 		inst.configPath = ""
+	}
+	close(inst.done)
+	m.mu.Unlock()
+
+	if err != nil {
+		emitLog(inst.id, inst.typ, "error", err.Error())
+	}
+	if finalState == stateStopped {
+		emitLog(inst.id, inst.typ, "info", "stopped")
 	}
 }
 
@@ -187,34 +199,31 @@ func (m *manager) stop(typ, id string) error {
 		return nil
 	}
 	inst.state = stateStopping
+	inst.stopping = true
 	m.mu.Unlock()
+	emitLog(id, typ, "info", "stopping")
 
 	if inst.cancel != nil {
 		inst.cancel()
 	}
 
-	var err error
-	if graceful, ok := inst.service.(gracefulCloseableService); ok {
-		err = graceful.GracefulClose(10 * time.Second)
-	} else if inst.service != nil {
-		err = inst.service.Close()
+	var closeErr error
+	if inst.service != nil {
+		closeErr = inst.service.Close()
 	}
-	if err != nil {
+
+	select {
+	case <-inst.done:
+	case <-time.After(10 * time.Second):
 		m.mu.Lock()
 		inst.state = stateFailed
-		inst.lastError = err.Error()
+		inst.lastError = "stop timeout"
 		m.mu.Unlock()
-		return newError(ErrStopFailed, "stop %s instance %q failed: %v", typ, id, err)
+		return newError(ErrStopFailed, "stop %s instance %q timed out", typ, id)
 	}
-
-	close(inst.done)
-
-	m.mu.Lock()
-	inst.state = stateStopped
-	removeConfigTemp(inst.configPath)
-	inst.configPath = ""
-	m.mu.Unlock()
-	emitLog(id, typ, "info", "stopped")
+	if closeErr != nil {
+		return newError(ErrStopFailed, "stop %s instance %q failed: %v", typ, id, closeErr)
+	}
 
 	return nil
 }
