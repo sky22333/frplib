@@ -5,6 +5,7 @@ import "fmt"
 const (
 	ErrAlreadyRunning = "ALREADY_RUNNING"
 	ErrInvalidID      = "INVALID_ID"
+	ErrInvalidTempDir = "INVALID_TEMP_DIR"
 	ErrInvalidToml    = "INVALID_TOML"
 	ErrStartFailed    = "START_FAILED"
 	ErrStopFailed     = "STOP_FAILED"

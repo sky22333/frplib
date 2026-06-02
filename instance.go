@@ -3,7 +3,6 @@ package frplib
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"regexp"
 	"sync"
 	"time"
@@ -68,14 +67,17 @@ func validateID(id string) error {
 }
 
 func writeConfigTemp(prefix, configToml string) (string, error) {
-	dir := filepath.Join(os.TempDir(), "frplib")
+	dir, err := configTempDir()
+	if err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", newError(ErrInternal, "create temp config dir failed: %v", err)
+		return "", newError(ErrInternal, "create temp config dir failed: %v. On Android, call SetTempDir(context.cacheDir.absolutePath) before starting frp", err)
 	}
 
 	file, err := os.CreateTemp(dir, prefix+"-*.toml")
 	if err != nil {
-		return "", newError(ErrInternal, "create temp config failed: %v", err)
+		return "", newError(ErrInternal, "create temp config failed: %v. On Android, call SetTempDir(context.cacheDir.absolutePath) before starting frp", err)
 	}
 
 	path := file.Name()
@@ -160,6 +162,7 @@ func (m *manager) run(key string, inst *instance, ctx context.Context) {
 	m.mu.Lock()
 	if current, ok := m.instances[key]; ok && current == inst {
 		switch {
+		case inst.state == stateFailed:
 		case inst.stopping:
 			inst.state = stateStopped
 			inst.lastError = ""

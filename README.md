@@ -26,6 +26,15 @@ io.github.sky22333.frplib
 
 ## 基础用法
 
+App 启动后先设置私有临时目录：
+
+```kotlin
+val tempErr = Frplib.SetTempDir(context.cacheDir.absolutePath)
+if (tempErr.isNotEmpty()) {
+    // 处理临时目录错误，不要继续启动 frp
+}
+```
+
 启动客户端：
 
 ```kotlin
@@ -57,6 +66,7 @@ Frplib.StopServer()
 
 ```text
 ALREADY_RUNNING: ...
+INVALID_TEMP_DIR: ...
 INVALID_TOML: ...
 START_FAILED: ...
 STOP_FAILED: ...
@@ -106,6 +116,12 @@ Frplib.SetLogCallback(object : FrpLogCallback {
 ```
 
 生命周期日志包含实例 ID。frp 内部日志的 `type` 为 `frp`，实例 ID 为空。
+
+日志回调不保证在主线程。需要更新 UI 时，请切回 Android 主线程。
+
+## 配置文件路径
+
+传入的是 TOML 字符串。TOML 中如果引用证书、密钥、include 等文件，建议使用 App 私有目录下的绝对路径。
 
 ## Reload
 
