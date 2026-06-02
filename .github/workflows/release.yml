@@ -1,0 +1,89 @@
+name: 发布 AAR
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "发布 tag，同时用于选择上游 frp 版本"
+        required: true
+        default: "v0.69.1"
+
+jobs:
+  build-aar:
+    name: 构建 ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: arm64-v8a
+            gomobile_target: android/arm64
+          - target: armeabi-v7a
+            gomobile_target: android/arm
+          - target: x86_64
+            gomobile_target: android/amd64
+          - target: universal
+            gomobile_target: android/arm,android/arm64,android/amd64
+
+    steps:
+      - name: 拉取源码
+        uses: actions/checkout@v4
+
+      - name: 安装 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: 安装 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 gomobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          gomobile init
+
+      - name: 更新到上游 frp 最新依赖
+        run: |
+          go get github.com/fatedier/frp@${{ inputs.tag }}
+          go mod tidy
+
+      - name: 运行测试
+        run: go test ./...
+
+      - name: 构建 AAR
+        run: |
+          mkdir -p dist
+          gomobile bind \
+            -target=${{ matrix.gomobile_target }} \
+            -androidapi=23 \
+            -o dist/frplib-${{ matrix.target }}.aar \
+            -ldflags="-s -w" \
+            -trimpath \
+            -javapkg=io.github.sky22333.frplib \
+            github.com/sky22333/frplib
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: frplib-${{ matrix.target }}
+          path: dist/frplib-${{ matrix.target }}.aar
+
+  release:
+    name: 发布到 GitHub Releases
+    runs-on: ubuntu-latest
+    needs: build-aar
+    permissions:
+      contents: write
+    steps:
+      - name: 下载全部构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 发布到 GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          files: dist/*.aar
