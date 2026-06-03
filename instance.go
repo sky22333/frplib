@@ -217,7 +217,7 @@ func (m *manager) stop(typ, id string) error {
 
 	select {
 	case <-inst.done:
-	case <-time.After(10 * time.Second):
+	case <-time.After(3 * time.Second):
 		m.mu.Lock()
 		inst.state = stateFailed
 		inst.lastError = "stop timeout"
