@@ -139,3 +139,7 @@ Frplib.setLogCallback(object : FrpLogCallback {
 `StopServer` / `stopServerWithID` 可能因上游 frps `Run()` 未返回而超时，即使端口已释放也不代表 frplib 已收到完整退出确认。
 
 </details>
+
+### 鸣谢
+
+- [fatedier/frp](https://github.com/fatedier/frp)
