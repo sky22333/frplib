@@ -2,7 +2,10 @@ module github.com/sky22333/frplib
 
 go 1.26
 
-require github.com/fatedier/frp v0.69.1
+require (
+	github.com/fatedier/frp v0.69.1
+	github.com/fatedier/golib v0.7.0
+)
 
 require (
 	github.com/Azure/go-ntlmssp v0.1.0 // indirect
@@ -10,7 +13,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coreos/go-oidc/v3 v3.14.1 // indirect
-	github.com/fatedier/golib v0.7.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect

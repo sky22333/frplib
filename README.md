@@ -132,3 +132,10 @@ Frplib.setLogCallback(object : FrpLogCallback {
 ```
 
 如果新 TOML 验证失败，旧实例会继续运行。
+
+<details>
+<summary>已知说明</summary>
+
+`StopServer` / `stopServerWithID` 可能因上游 frps `Run()` 未返回而超时，即使端口已释放也不代表 frplib 已收到完整退出确认。
+
+</details>
