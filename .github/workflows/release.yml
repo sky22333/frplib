@@ -35,7 +35,14 @@ jobs:
           go-version: stable
 
       - name: 安装 Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platforms;android-37 build-tools;37.0.0 platform-tools'
+
+      - name: 安装 Android NDK
+        run: |
+          sdkmanager --channel=0 --install "ndk;29.0.14206865"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
 
       - name: 安装 gomobile
         run: |
@@ -55,12 +62,32 @@ jobs:
           mkdir -p dist
           gomobile bind \
             -target=${{ matrix.gomobile_target }} \
-            -androidapi=23 \
+            -androidapi=24 \
             -o dist/frplib-${{ matrix.target }}.aar \
-            -ldflags="-s -w -checklinkname=0" \
+            -ldflags="-s -w -buildid= -checklinkname=0" \
             -trimpath \
             -javapkg=io.github.sky22333 \
             github.com/sky22333/frplib
+
+      - name: 验证 16 KB ELF 对齐
+        run: |
+          set -euo pipefail
+          mkdir -p verify-aar
+          unzip -q dist/frplib-${{ matrix.target }}.aar -d verify-aar
+          objdump="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-objdump"
+          count=0
+          while IFS= read -r -d '' so; do
+            count=$((count + 1))
+            echo "checking $so"
+            "$objdump" -p "$so" | awk '
+              /LOAD/ && $NF != "2**14" {
+                print "expected LOAD align 2**14, got: " $0
+                bad = 1
+              }
+              END { exit bad }
+            '
+          done < <(find verify-aar/jni -name '*.so' -print0)
+          test "$count" -gt 0
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
