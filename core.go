@@ -1,22 +1,12 @@
 package frplib
 
-import "runtime/debug"
+import frpversion "github.com/fatedier/frp/pkg/util/version"
 
 var globalManager = newManager()
 
 // Version returns the upstream frp version embedded by this core.
 func Version() string {
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, dep := range info.Deps {
-			if dep.Path == "github.com/fatedier/frp" {
-				if dep.Replace != nil {
-					return dep.Replace.Version
-				}
-				return dep.Version
-			}
-		}
-	}
-	return "unknown"
+	return frpversion.Full()
 }
 
 func StartClient(configToml string) string {
